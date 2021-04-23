@@ -2,13 +2,15 @@
 Auth bot
 '''
 import asyncio
-from bot import PostBot
 from discord import Client
 from dotenv import load_dotenv
 
 load_dotenv()
 
 client = discord.Client()
+TOKEN = os.getenv('DISCORD_TOKEN')
+GUILD = os.getenv('DISCORD_GUILD')
+
 
 @client.event
 async def on_ready():
@@ -36,7 +38,7 @@ async def on_member_join(member):
 async def on_message(message):
     if not message.guild:
         if validate_email_command(message.content):
-            
+            print("asdas")
         else:
             await message.author.create_dm()
             await member.dm_channel.send(
