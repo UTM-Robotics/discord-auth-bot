@@ -4,11 +4,13 @@ class CodeGenerator():
     CodeGenerator class to generate random alpha-numeric codes
     Attributes:
         Existing: List of already existing emails.
+
+
     """
     Existing : list
     code_length : int
-
-    def __init__(self, code_length=8: int):
+    
+    def __init__(self, code_length: int):
         self.code_length = code_length
         self.Existing = []
 

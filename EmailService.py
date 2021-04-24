@@ -7,14 +7,13 @@ class EmailService():
     A email_bot to send emails. Configured to use Gmail account.
 
     Attributes:
-        sender : Email-id to send the email from
-        password : Password of the sender email
-        
-        Add comment for email setup process to use the bot.
-        Add support for other account types.
-        Add exception handling.
-                
+
+    sender : Email-id to send the email from
+    password : Password of the sender email
     
+    Add comment for email setup process to use the bot.
+    Add support for other account types.
+    Add exception handling.
     """
     sender : str
     password : str
