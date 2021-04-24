@@ -28,8 +28,7 @@ class EmailService():
         self.sender = sender
         self.password = password
 
-    @staticmethod
-    def sendmail(receiver:str, subject:str, body:str) -> bool:
+    def sendmail(self, receiver:str, subject:str, body:str) -> bool:
         """
         Send a email to the receiver with given subject and body text.
         :param receiver: email id of the receiver.
@@ -48,5 +47,8 @@ class EmailService():
                 server.ehlo()
                 server.sendmail(sender, receiver, message)
                 return True
-            except Exception:
+            except Exception as e:
+                print(e)
+                print(self.sender)
+                print(self.password)
                 return False
