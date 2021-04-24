@@ -10,9 +10,9 @@ class EmailService():
         sender : Email-id to send the email from
         password : Password of the sender email
         
-    TODO Add comment for email setup process to use the bot.
-         Add support for other account types.
-         Add exception handling.
+        Add comment for email setup process to use the bot.
+        Add support for other account types.
+        Add exception handling.
                 
     
     """

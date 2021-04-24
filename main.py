@@ -14,6 +14,9 @@ import CodeGenerator
 # Load environment variables
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
+EMAIL_USERNAME = os.getenv('EMAIL_PASSWORD')
+EMAIL_PASSWORD = os.getenv('EMAIL_PASSWORD')
+
 GUILD = os.getenv('DISCORD_GUILD')
 
 
