@@ -37,18 +37,20 @@ class EmailService():
         :return: returns true if the email was sent successfully and 
                 false otherwise.
         """
-        sender = 'robotics@utmsu.ca'
+        sender = self.sender
         password = self.password
         message = 'Subject: {}\n\n{}'.format(subject, body)
         context = ssl.create_default_context()
-        with smt.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
-            try:
-                server.login(sender, password)
-                server.ehlo()
-                server.sendmail(sender, receiver, message)
-                return True
-            except Exception as e:
-                print(e)
-                print(self.sender)
-                print(self.password)
-                return False
+        try:
+            server = smt.SMTP('smtp.gmail.com', 587)
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
+            server.login(sender, password)
+            server.sendmail(sender, receiver, message)
+            return True
+        except Exception as e:
+            print(e)
+            print(self.sender)
+            print(self.password)
+            return False

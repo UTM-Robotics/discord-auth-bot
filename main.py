@@ -105,7 +105,7 @@ async def on_member_join(member):
     await member.send(
         f'Hi {member.name}, welcome to The Show Discord Server!\n' +
         'If you are a University of Toronto Student, please' +
-        " authenticate via email by messaging me '!auth your-uoft-email'." + \
+        " authenticate via email by messaging me `!auth your-uoft-email`." + \
         " If not, please message a Staff member with your school email!" +
         " See you soon!"
     )
@@ -139,9 +139,10 @@ async def on_message(message):
                         body=f"Welcome to the Show, {member.name}! \
                         Your verification code is: {code}"
                         )
-                    if True:
+                    if status:
                         print("Email sent")
                         await send_verification_log(code, email, member)
+                        await send_verification_confirmation(member)
                     else:
                         print("FAILURE: Could not send email")
                         await invalid_email_callback(member)
@@ -158,7 +159,6 @@ async def on_message(message):
                     await grant_verification_role(member)
                     print("Granted role to : " + member.name)
                     await role_granted_callback(member)
-                    # TODO consume_code(member)
                 else:
                     print("Invalid verification code from: " + member.name)
                     await invalid_verification_code_callback(member)
@@ -177,6 +177,11 @@ async def grant_verification_role(user):
     global current_guild
     member = current_guild.get_member(user.id)
     await member.add_roles(verification_role)
+
+async def has_verification_role(user):
+    global current_guild
+    member = current_guild.get_member(user.id)
+    return verification_role in member.roles
 
 async def does_code_match(code, member):
     global verification_channel
@@ -199,6 +204,12 @@ async def role_granted_callback(member):
     await member.send(
         'Success! Have fun, be sure to check #schedule for the full event schedule!'
     )
+
+async def send_verification_confirmation(member):
+    await member.send(
+        'Success! Check the above email(and spam) for a code, then respond here with`!code your-code` to verify!'
+    )
+
 
 async def invalid_command_callback(member):
     await member.send(
