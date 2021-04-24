@@ -40,7 +40,7 @@ class EmailService():
                 false otherwise.
         """
         sender = 'robotics@utmsu.ca'
-        password = 'autonomousenthusiasts'
+        password = self.password
         message = 'Subject: {}\n\n{}'.format(subject, body)
         context = ssl.create_default_context()
         with smt.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
