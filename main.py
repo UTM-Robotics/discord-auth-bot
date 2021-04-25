@@ -115,10 +115,10 @@ async def on_member_join(member):
 async def on_message(message):
     if message.author == client.user:
         return
-    print(f"--------Message received from: {message.author.name}--------\n")
-    print("Received in guild: " +  str(message.guild))
     member = message.author
     if not message.guild:
+        print(f"--------Message received from: {message.author.name}--------\n")
+        print("Received in guild: " +  str(message.guild))
         if validate_command_prefix(message.content, "!auth"):
             print("User called !auth")
 
