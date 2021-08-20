@@ -10,7 +10,7 @@ from discord import Intents
 from dotenv import load_dotenv
 
 # Internal imports
-from CodeGenerator import CodeGenerator 
+from CodeGenerator import CodeGenerator
 from EmailService import EmailService
 # Load environment variables
 load_dotenv()
@@ -20,11 +20,13 @@ EMAIL_PASSWORD = os.getenv('EMAIL_PASSWORD')
 GUILD = os.getenv('DISCORD_GUILD')
 VERIFICATION_CHANNEL = os.getenv('VERIFICATION_CHANNEL')
 VERIFICATED_ROLE_NAME = os.getenv('VERIFICATED_ROLE_NAME')
+BANNED_CHANNEL = os.getenv('BANNED_CHANNEL')
+VERIFIED_CHANNEL = os.getenv('VERIFIED_CHANNEL')
+#TODO: VERIFIED CHANNEL TRACK VERIFIED USERS EMAILS SO THEY CANT BE REUSED
 
 # Set required intents.
 intents = Intents.default()
 intents.typing = False
-intents.presences = False
 intents.members = True
 
 # Constants
@@ -35,6 +37,8 @@ CODE_LENGTH = 8
 current_guild = None
 verification_channel = None
 verification_role = None
+banned_channel = None
+verified_channel = None
 
 HELP_MESSAGE = """
 Hey, welcome to The Show :wave:!
@@ -61,6 +65,9 @@ async def on_ready():
     global verification_channel
     global verification_role
     global current_guild
+    global banned_channel
+    global verified_channel
+
     for guild in client.guilds:
         if guild.name == GUILD:
             current_guild=guild
@@ -72,7 +79,7 @@ async def on_ready():
         f'{client.user} is connected to the following guild:\n'
         f'{guild.name}(id: {guild.id})'
     )
-    # Load channel
+    # Load Verification channel
     for channel in current_guild.channels:
         if channel.name == VERIFICATION_CHANNEL:
             verification_channel = channel
@@ -80,18 +87,36 @@ async def on_ready():
     if verification_channel == None:
         print(f"Required verification channel {VERIFICATION_CHANNEL} not found.")
         exit(-1)
+    # Load Banned users channel
+    for channel in current_guild.channels:
+        if channel.name == BANNED_CHANNEL:
+            banned_channel = channel
+            break
+    if banned_channel == None:
+        print(f"Required banned channel {BANNED_CHANNEL} not found.")
+        exit(-1)
+    # Load verified users channel
+    for channel in current_guild.channels:
+        if channel.name == VERIFIED_CHANNEL:
+            verified_channel = channel
+            break
+    if verified_channel == None:
+        print(f"Required banned channel {VERIFIED_CHANNEL} not found.")
+        exit(-1)
     print(
-        f'{client.user} is mapped to the following channel:\n'
-        f'{verification_channel.name}(id: {verification_channel.id})'
+        f'{client.user} is mapped to the following channels:\n'
+        f'{verification_channel.name}(id: {verification_channel.id}) and \n'
+        f'{banned_channel.name}(id: {banned_channel.id} and \n'
+        f'{verified_channel.name}(id: {verified_channel.id})'
     )
     #load verification role
     for role in current_guild.roles:
         if role.name == VERIFICATED_ROLE_NAME:
             verification_role = role
             break
-    
+
     if verification_role == None:
-        print(f"Required verification role {VERIFICATION_ROLE} not found.")
+        print(f"Required verification role {VERIFICATED_ROLE_NAME} not found.")
         exit(-1)
     print(
         f'{client.user} is mapped to the following verification role:\n'
@@ -134,7 +159,7 @@ async def on_message(message):
                     code = gen.generate()
                     print("Code generated:" +  code)
                     emailService = EmailService(EMAIL_USERNAME,EMAIL_PASSWORD)
-                    status = emailService.sendmail(receiver=email, 
+                    status = emailService.sendmail(receiver=email,
                         subject="The Show Discord Verification",
                         body=f"Welcome to the Show, {member.name}! \
                         Your verification code is: {code}"
@@ -155,10 +180,13 @@ async def on_message(message):
             split_message = message.content.split(" ")
             if len(split_message) == 2:
                 code=split_message[1]
-                if await does_code_match(code, member):
+                verified_email = does_code_match(code, member)
+                if await verified_email:
                     await grant_verification_role(member)
                     print("Granted role to : " + member.name)
                     await role_granted_callback(member)
+                    print("second time" + str(verified_email))
+                    await send_verified_log(str(verified_email), member)
                 else:
                     print("Invalid verification code from: " + member.name)
                     await invalid_verification_code_callback(member)
@@ -173,16 +201,25 @@ async def on_message(message):
         else:
             await invalid_command_callback(member)
 
+@client.event
+#when a user is banned
+async def on_member_ban(guild, user):
+    # find way to access users email
+    await send_banned_log(None, user.email, user)
+
 async def grant_verification_role(user):
     global current_guild
     member = current_guild.get_member(user.id)
     await member.add_roles(verification_role)
+
 
 async def has_verification_role(user):
     global current_guild
     member = current_guild.get_member(user.id)
     return verification_role in member.roles
 
+
+# check if code matches, if it does return the email of the verified user
 async def does_code_match(code, member):
     global verification_channel
     messages = await verification_channel.history(limit=20000).flatten()
@@ -192,18 +229,42 @@ async def does_code_match(code, member):
             continue
         id = parsed[0]
         parsed_code = parsed[1]
+        email = parsed[2]
         if id == str(member.id) and parsed_code == code:
-            return True
+            return email
     return False
+
+
+# get the uoft email associated with the user
+async def get_verified_email(user):
+    global verified_channel
+    messages = await verification_channel.history(limit=20000).flatten()
+    for message in messages:
+        parsed = message.content.split(", ")
+
 
 async def send_verification_log(code, email, member):
     global verification_channel
     await verification_channel.send(f'{member.id}, {code}, {email}, {member.name}')
 
+
+# send email and member name to verified channel
+async def send_verified_log(email, member):
+    global verified_channel
+    await verified_channel.send(f'{email}, {member.name}, {member.id}')
+
+
+# send banned user log to banned users channel
+async def send_banned_log(email, member):
+    global banned_channel
+    await banned_channel.send(f'{email}, {member.name}, {member.id}')
+
+
 async def role_granted_callback(member):
     await member.send(
         'Success! Have fun, be sure to check #schedule for the full event schedule!'
     )
+
 
 async def send_verification_confirmation(member):
     await member.send(
@@ -216,15 +277,18 @@ async def invalid_command_callback(member):
         'Invalid command, send "!help" for commands.'
     )
 
+
 async def invalid_email_callback(member):
     await member.send(
         'Invalid email, please enter a valid UofT email.'
     )
 
+
 async def invalid_verification_code_callback(member):
     await member.send(
         'Invalid verification code. Please check the correct code has been sent.'
     )
+
 
 def validate_command_prefix(content, prefix):
     ''' Validates whether the content of a command's message 
@@ -244,5 +308,6 @@ def is_valid_email(email):
             return True
     return False
 
-
+print(TOKEN)
+print(GUILD)
 client.run(TOKEN)
