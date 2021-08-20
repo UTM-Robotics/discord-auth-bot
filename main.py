@@ -22,7 +22,8 @@ VERIFICATION_CHANNEL = os.getenv('VERIFICATION_CHANNEL')
 VERIFICATED_ROLE_NAME = os.getenv('VERIFICATED_ROLE_NAME')
 BANNED_CHANNEL = os.getenv('BANNED_CHANNEL')
 VERIFIED_CHANNEL = os.getenv('VERIFIED_CHANNEL')
-#TODO: VERIFIED CHANNEL TRACK VERIFIED USERS EMAILS SO THEY CANT BE REUSED
+
+EMAIL_SUBJECT = "The Show Discord Verification"
 
 # Set required intents.
 intents = Intents.default()
@@ -160,7 +161,8 @@ async def on_message(message):
                     print("Code generated:" +  code)
                     emailService = EmailService(EMAIL_USERNAME,EMAIL_PASSWORD)
                     status = emailService.sendmail(receiver=email,
-                        subject="The Show Discord Verification",
+                        subject=EMAIL_SUBJECT,
+                        #TODO: Format this into a constant
                         body=f"Welcome to the Show, {member.name}! \
                         Your verification code is: {code}"
                         )
@@ -201,10 +203,10 @@ async def on_message(message):
 @client.event
 #when a user is banned
 async def on_member_ban(guild, user):
-    # find way to access users email
-    #TODO: find user_email
-    print(str(user.name) + " has been banned")
-    await get_verified_email(user)
+    if has_verification_role(user):
+        print(str(user.name) + " has been banned")
+        await get_verified_email(user)
+    return
 
 async def grant_verification_role(user):
     global current_guild
@@ -267,7 +269,7 @@ async def is_free_email(user, email):
     for message in messages:
         parsed = message.content.split(", ")
         if email == parsed[0]:
-            await user.send("This email address is already in use")
+            await user.send("This email address is already in use, if you think this is an error please contact server admin")
             return False
     return True
 
@@ -338,6 +340,4 @@ def is_valid_email(email):
     return False
 
 
-print(TOKEN)
-print(GUILD)
 client.run(TOKEN)
