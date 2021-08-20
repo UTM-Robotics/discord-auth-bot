@@ -153,7 +153,7 @@ async def on_message(message):
                 and len(split_message[1]) <= 254:
                 email = split_message[1]
                 # Validate email
-                if is_valid_email(email): #TODO and not_validated(member):
+                if is_valid_email(email) and await is_free_email(member, email):
                     print("Valid email used: " + email)
                     gen = CodeGenerator(code_length=CODE_LENGTH)
                     code = gen.generate()
@@ -180,13 +180,10 @@ async def on_message(message):
             split_message = message.content.split(" ")
             if len(split_message) == 2:
                 code=split_message[1]
-                verified_email = does_code_match(code, member)
-                if await verified_email:
+                if await does_code_match(code, member):
                     await grant_verification_role(member)
                     print("Granted role to : " + member.name)
                     await role_granted_callback(member)
-                    print("second time" + str(verified_email))
-                    await send_verified_log(str(verified_email), member)
                 else:
                     print("Invalid verification code from: " + member.name)
                     await invalid_verification_code_callback(member)
@@ -205,7 +202,9 @@ async def on_message(message):
 #when a user is banned
 async def on_member_ban(guild, user):
     # find way to access users email
-    await send_banned_log(None, user.email, user)
+    #TODO: find user_email
+    print(str(user.name) + " has been banned")
+    await get_verified_email(user)
 
 async def grant_verification_role(user):
     global current_guild
@@ -231,16 +230,46 @@ async def does_code_match(code, member):
         parsed_code = parsed[1]
         email = parsed[2]
         if id == str(member.id) and parsed_code == code:
-            return email
+            await send_verified_log(str(email), member)
+            return True
     return False
 
 
 # get the uoft email associated with the user
 async def get_verified_email(user):
     global verified_channel
-    messages = await verification_channel.history(limit=20000).flatten()
+    messages = await verified_channel.history(limit=20000).flatten()
     for message in messages:
         parsed = message.content.split(", ")
+        email = parsed[0]
+        id = parsed[2]
+        if id == str(user.id):
+            break
+
+    await send_banned_log(email, user)
+    print("user: " + str(user.name) + " was banned from the server, the email: " + str(
+        email) + " was added to ban list")
+
+    #TODO user not found case
+
+
+# check if email has been banned or already in use
+async def is_free_email(user, email):
+    global banned_channel
+    global verified_channel
+    messages = await banned_channel.history(limit=20000).flatten()
+    for message in messages:
+        parsed = message.content.split(", ")
+        if email == parsed[0]:
+            await user.send("This email address has been banned from a previous account.")
+            return False
+    messages = await verified_channel.history(limit=20000).flatten()
+    for message in messages:
+        parsed = message.content.split(", ")
+        if email == parsed[0]:
+            await user.send("This email address is already in use")
+            return False
+    return True
 
 
 async def send_verification_log(code, email, member):
@@ -307,6 +336,7 @@ def is_valid_email(email):
         if re.search('^[A-Za-z0-9._%+-]+@' + suffix + '$', email):
             return True
     return False
+
 
 print(TOKEN)
 print(GUILD)
