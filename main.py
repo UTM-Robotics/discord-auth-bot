@@ -23,7 +23,7 @@ VERIFICATED_ROLE_NAME = os.getenv('VERIFICATED_ROLE_NAME')
 BANNED_CHANNEL = os.getenv('BANNED_CHANNEL')
 VERIFIED_CHANNEL = os.getenv('VERIFIED_CHANNEL')
 
-EMAIL_SUBJECT = "The Show Discord Verification"
+EMAIL_SUBJECT = "Deerfield Village Discord Verification"
 
 # Set required intents.
 intents = Intents.default()
@@ -42,7 +42,7 @@ banned_channel = None
 verified_channel = None
 
 HELP_MESSAGE = """
-Hey, welcome to The Show :wave:!
+Hey, welcome to Deerfield Village :wave:!
 
 Valid commands are `!help`, `!auth`, and `!code`.
     `!help` :
@@ -129,7 +129,7 @@ async def on_ready():
 async def on_member_join(member):
     await member.create_dm()
     await member.send(
-        f'Hi {member.name}, welcome to The Show Discord Server!\n' +
+        f'Hi {member.name}, welcome to the Deerfield Village Discord Server!\n' +
         'If you are a University of Toronto Student, please' +
         " authenticate via email by messaging me `!auth your-uoft-email`." + \
         " If not, please message a Staff member with your school email!" +
@@ -163,7 +163,7 @@ async def on_message(message):
                     status = emailService.sendmail(receiver=email,
                         subject=EMAIL_SUBJECT,
                         #TODO: Format this into a constant
-                        body=f"Welcome to the Show, {member.name}! \
+                        body=f"Welcome to Deerfield Village, {member.name}! \
                         Your verification code is: {code}"
                         )
                     if status:
@@ -203,21 +203,41 @@ async def on_message(message):
 @client.event
 #when a user is banned
 async def on_member_ban(guild, user):
-    if has_verification_role(user):
-        print(str(user.name) + " has been banned")
-        await get_verified_email(user)
+    global verified_channel
+    messages = await verified_channel.history(limit=20000).flatten()
+    for message in messages:
+        parsed = message.content.split(", ")
+        email = parsed[0]
+        id = parsed[2]
+        if id == str(user.id):
+            await send_banned_log(email, user)
+            print("user: " + str(user.name) + " was banned from the server, the email: " + str(
+                email) + " was added to ban list")
+            await message.delete()
+            break
     return
+
+@client.event
+#when a user is unbanned
+async def on_member_unban(guild, user):
+    global banned_channel
+    messages = await banned_channel.history(limit=20000).flatten()
+    for message in messages:
+        parsed = message.content.split(", ")
+        email = parsed[0]
+        id = parsed[2]
+        if id == str(user.id):
+            print("user: " + str(user.name) + " was unbanned from the server, the email: " + str(
+                email) + " was removed from the ban list")
+            await message.delete()
+            break
+    return
+
 
 async def grant_verification_role(user):
     global current_guild
     member = current_guild.get_member(user.id)
     await member.add_roles(verification_role)
-
-
-async def has_verification_role(user):
-    global current_guild
-    member = current_guild.get_member(user.id)
-    return verification_role in member.roles
 
 
 # check if code matches, if it does return the email of the verified user
@@ -235,24 +255,6 @@ async def does_code_match(code, member):
             await send_verified_log(str(email), member)
             return True
     return False
-
-
-# get the uoft email associated with the user
-async def get_verified_email(user):
-    global verified_channel
-    messages = await verified_channel.history(limit=20000).flatten()
-    for message in messages:
-        parsed = message.content.split(", ")
-        email = parsed[0]
-        id = parsed[2]
-        if id == str(user.id):
-            break
-
-    await send_banned_log(email, user)
-    print("user: " + str(user.name) + " was banned from the server, the email: " + str(
-        email) + " was added to ban list")
-
-    #TODO user not found case
 
 
 # check if email has been banned or already in use
