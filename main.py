@@ -213,6 +213,23 @@ async def on_member_ban(guild, user):
             await send_banned_log(email, user)
             print("user: " + str(user.name) + " was banned from the server, the email: " + str(
                 email) + " was added to ban list")
+            await message.delete()
+            break
+    return
+
+@client.event
+#when a user is unbanned
+async def on_member_unban(guild, user):
+    global banned_channel
+    messages = await banned_channel.history(limit=20000).flatten()
+    for message in messages:
+        parsed = message.content.split(", ")
+        email = parsed[0]
+        id = parsed[2]
+        if id == str(user.id):
+            print("user: " + str(user.name) + " was unbanned from the server, the email: " + str(
+                email) + " was removed from the ban list")
+            await message.delete()
             break
     return
 
