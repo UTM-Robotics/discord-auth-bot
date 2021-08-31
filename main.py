@@ -100,7 +100,7 @@ async def on_ready():
             verified_channel = channel
             break
     if verified_channel == None:
-        print(f"Required banned channel {VERIFIED_CHANNEL} not found.")
+        print(f"Required verified channel {VERIFIED_CHANNEL} not found.")
         exit(-1)
     print(
         f'{client.user} is mapped to the following channels:\n'
