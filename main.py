@@ -22,6 +22,7 @@ VERIFICATION_CHANNEL = os.getenv('VERIFICATION_CHANNEL')
 VERIFICATED_ROLE_NAME = os.getenv('VERIFICATED_ROLE_NAME')
 BANNED_CHANNEL = os.getenv('BANNED_CHANNEL')
 VERIFIED_CHANNEL = os.getenv('VERIFIED_CHANNEL')
+LOGS_CATEGORY = os.getenv("LOGS_CATEGORY")
 
 EMAIL_SUBJECT = "Deerfield Village Discord Verification"
 
@@ -40,6 +41,7 @@ verification_channel = None
 verification_role = None
 banned_channel = None
 verified_channel = None
+logs_category = None
 
 HELP_MESSAGE = """
 Hey, welcome to Deerfield Village :wave:!
@@ -68,6 +70,7 @@ async def on_ready():
     global current_guild
     global banned_channel
     global verified_channel
+    global logs_category
 
     for guild in client.guilds:
         if guild.name == GUILD:
@@ -80,8 +83,16 @@ async def on_ready():
         f'{client.user} is connected to the following guild:\n'
         f'{guild.name}(id: {guild.id})'
     )
+    #load logging category
+    for category in current_guild.categories:
+        if category.name == LOGS_CATEGORY:
+            logs_category = category.name
+            break
+        if logs_category == None:
+            print(f"Required logging category {LOGS_CATEGORY} not found")
+            exit(-1)
     # Load Verification channel
-    for channel in current_guild.channels:
+    for channel in logs_category:
         if channel.name == VERIFICATION_CHANNEL:
             verification_channel = channel
             break
@@ -89,7 +100,7 @@ async def on_ready():
         print(f"Required verification channel {VERIFICATION_CHANNEL} not found.")
         exit(-1)
     # Load Banned users channel
-    for channel in current_guild.channels:
+    for channel in logs_category:
         if channel.name == BANNED_CHANNEL:
             banned_channel = channel
             break
@@ -97,7 +108,7 @@ async def on_ready():
         print(f"Required banned channel {BANNED_CHANNEL} not found.")
         exit(-1)
     # Load verified users channel
-    for channel in current_guild.channels:
+    for channel in logs_category:
         if channel.name == VERIFIED_CHANNEL:
             verified_channel = channel
             break
