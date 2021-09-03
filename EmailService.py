@@ -1,5 +1,6 @@
 import smtplib as smt
 from email.message import EmailMessage
+from email.mime.text import MIMEText
 import ssl
 
 class EmailService():
@@ -46,8 +47,14 @@ class EmailService():
             server.ehlo()
             server.starttls()
             server.ehlo()
+
+            text_type = 'plain' # or 'html'
+            mime = MIMEText(body, text_type, 'utf-8')
+            mime['Subject'] = subject
+            mime['From'] = sender
+            mime['To'] = receiver
             server.login(sender, password)
-            server.sendmail(sender, receiver, message)
+            server.sendmail(sender, receiver, mime.as_string())
             return True
         except Exception as e:
             print(e)
