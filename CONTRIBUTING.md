@@ -1,7 +1,7 @@
 # CONTRIBUTING GUIDELINE
 
 <aside>
-This guideline is intended for participants in [GDSC Open-source Initiative 2022](https://gdsc.community.dev/e/mndaxe/)
+This guideline is intended for participants in GDSC Open-source Initiative 2022: https://gdsc.community.dev/e/mndaxe/
 
 </aside>
 
@@ -74,7 +74,7 @@ As a rule of thumb, we strongly recommend you *Accept Incoming Change*. If you l
 # Community Rules
 
 - All communication must be done via Discord and Github.
-- Your code must be original work. Otherwise, students can be suspended from the contest.
+- Your code must be original work.
 - Project Owners and GDSC Executives should get back to your students’ inquiries no later than 48 hours. Please ping us if you do not hear back from us later than that.
 - Please try to reach out to project owners if you have any inquiry related to the project, as they are the ones who understand the project the most.
 - If you detect any inappropriate, unfair, or ambiguous behaviors during the initiative, please reach out and report to GDSC Executives ASAP.
@@ -84,5 +84,4 @@ As a rule of thumb, we strongly recommend you *Accept Incoming Change*. If you l
 In case you have any questions or concerns, or you want us to review your issue/PR, please contact:
 
 - Project Owner: [Daksh Malhotra](https://github.com/DakshChan) (for project’s inquiries)
-- GDSC Open-source Initiative Lead: [Giang Bui](https://github.com/huonggiangbui) (for project’s inquiries and GDSC Open-source Initiative general inquiries)
-- GDSC Open-source Initiative Lead: [Joy Malhotra](https://github.com/joymalhotra) (for GDSC Open-source Initiative general inquiries)
+- GDSC Open-source Initiative Leads: [Giang Bui](https://github.com/huonggiangbui) and [Joy Malhotra](https://github.com/joymalhotra) (for project’s inquiries and GDSC Open-source Initiative general inquiries)
