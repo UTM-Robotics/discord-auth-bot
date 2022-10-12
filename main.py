@@ -147,52 +147,9 @@ async def on_message(message):
         print("Received in guild: " +  str(message.guild))
         if validate_command_prefix(message.content, "!auth"):
             print("User called !auth")
-
-            # Check first if user already has participant role
-            split_message = message.content.split(" ")
-            if len(split_message) == 2 and "@" in split_message[1] \
-                and len(split_message[1]) <= 254:
-                email = split_message[1]
-                # Validate email
-                if is_valid_email(email) and await is_free_email(member, email):
-                    print("Valid email used: " + email)
-                    gen = CodeGenerator(code_length=CODE_LENGTH)
-                    code = gen.generate()
-                    print("Code generated:" +  code)
-                    emailService = EmailService(EMAIL_USERNAME,EMAIL_PASSWORD)
-                    status = emailService.sendmail(receiver=email,
-                        subject=EMAIL_SUBJECT,
-                        #TODO: Format this into a constant
-                        body=f"Welcome to Deerfield Village, {member.name}! \
-                        Your verification code is: {code}"
-                        )
-                    if status:
-                        print("Email sent")
-                        await send_verification_log(code, email, member)
-                        await send_verification_confirmation(member)
-                    else:
-                        print("FAILURE: Could not send email")
-                        await invalid_email_callback(member)
-                else:
-                    #TODO Please submit a valid uoft email address.
-                    print("Invalid email from: " + member.name)
-            else:
-                await invalid_command_callback(member)
+            await authenticate_command(message, member)
         elif validate_command_prefix(message.content, "!code"):
-            split_message = message.content.split(" ")
-            if len(split_message) == 2:
-                code=split_message[1]
-                if await does_code_match(code, member):
-                    await grant_verification_role(member)
-                    print("Granted role to : " + member.name)
-                    await role_granted_callback(member)
-                else:
-                    print("Invalid verification code from: " + member.name)
-                    await invalid_verification_code_callback(member)
-            else:
-                print("Invalid verification code command from: " + member.name)
-                await invalid_command_callback(member)
-
+            await code_command(message, member)
         elif validate_command_prefix(message.content,  "!help"):
             await member.send(
                 HELP_MESSAGE
@@ -292,6 +249,56 @@ async def send_banned_log(email, member):
     global banned_channel
     await banned_channel.send(f'{email}, {member.name}, {member.id}')
 
+# User called !auth, Attempt to authenticate user
+async def authenticate_command(message, member):    
+    # Check first if user already has participant role
+    split_message = message.content.split(" ")
+    # Command in the improper format, send an error message
+    if not (len(split_message) == 2 and "@" in split_message[1] \
+        and len(split_message[1]) <= 254):
+        await invalid_command_callback(member)
+        return
+    
+    email = split_message[1]
+    # Validate email
+    if is_valid_email(email) and await is_free_email(member, email):
+        print("Valid email used: " + email)
+        gen = CodeGenerator(code_length=CODE_LENGTH)
+        code = gen.generate()
+        print("Code generated:" + code)
+        emailService = EmailService(EMAIL_USERNAME,EMAIL_PASSWORD)
+        status = emailService.sendmail(receiver=email,
+            subject=EMAIL_SUBJECT,
+            #TODO: Format this into a constant
+            body=f"Welcome to Deerfield Village, {member.name}! \
+            Your verification code is: {code}"
+            )
+        if status:
+            print("Email sent")
+            await send_verification_log(code, email, member)
+            await send_verification_confirmation(member)
+        else:
+            print("FAILURE: Could not send email")
+            await invalid_email_callback(member)
+    else:
+        #TODO Please submit a valid uoft email address.
+        print("Invalid email from: " + member.name)
+
+# User called !code, Attempt to verify user's code
+async def code_command(message, member):
+    split_message = message.content.split(" ")
+    if len(split_message) == 2:
+        code=split_message[1]
+        if await does_code_match(code, member):
+            await grant_verification_role(member)
+            print("Granted role to : " + member.name)
+            await role_granted_callback(member)
+        else:
+            print("Invalid verification code from: " + member.name)
+            await invalid_verification_code_callback(member)
+    else:
+        print("Invalid verification code command from: " + member.name)
+        await invalid_command_callback(member)
 
 async def role_granted_callback(member):
     await member.send(
