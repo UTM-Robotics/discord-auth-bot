@@ -110,7 +110,6 @@ async def on_ready():
     )
     #load verification role
     for role in current_guild.roles:
-        # print(role.name + " " + "\n")
         if role.name == VERIFICATED_ROLE_NAME:
             verification_role = role
             break
