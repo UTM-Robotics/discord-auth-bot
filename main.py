@@ -7,6 +7,7 @@ import os
 import re
 from discord import Client
 from discord import Intents
+from discord.ext import commands
 from dotenv import load_dotenv
 
 # Internal imports
@@ -22,12 +23,14 @@ VERIFICATION_CHANNEL = os.getenv('VERIFICATION_CHANNEL')
 VERIFICATED_ROLE_NAME = os.getenv('VERIFICATED_ROLE_NAME')
 BANNED_CHANNEL = os.getenv('BANNED_CHANNEL')
 VERIFIED_CHANNEL = os.getenv('VERIFIED_CHANNEL')
+COMMAND_PREFIX = os.getenv('COMMAND_PREFIX')
 EMAIL_SUBJECT = "Deerfield Village Discord Verification"
 
 # Set required intents.
 intents = Intents.default()
 intents.typing = False
 intents.members = True
+intents.message_content = True
 
 # Constants
 CODE_LENGTH = 8
@@ -55,7 +58,9 @@ Valid commands are `!help`, `!auth`, and `!code`.
 Message me with any of the above commands.
 """
 
-client = Client(intents=intents)
+client = commands.Bot(command_prefix=COMMAND_PREFIX, intents=intents)
+# Remove default help command
+client.remove_command("help")
 
 @client.event
 async def on_ready():
@@ -71,6 +76,11 @@ async def on_ready():
         if guild.name == GUILD:
             current_guild=guild
             break
+    # Check Prefix
+    if COMMAND_PREFIX == None:
+        print(f"Required command prefix{COMMAND_PREFIX} not found.")
+        exit(-1)
+    print(f"Command prefix is {COMMAND_PREFIX}")
     if current_guild == None:
         print(f"Required guild{GUILD} not found.")
         exit(-1)
@@ -134,34 +144,88 @@ async def on_member_join(member):
         " See you soon!"
     )
 
-# When a server member messages Herald.
 @client.event
-async def on_message(message):
-    if message.author == client.user:
-        return
-    member = message.author
-    if not message.guild:
-        print(f"--------Message received from: {message.author.name}--------\n")
-        print(f"Timestamp: {message.created_at}\n")
+async def on_command_error(ctx, error):
+    # Catches errors encountered when running a command and prints them to the console
+    print(f"Raised error when {ctx.author} called the {ctx.command} command")
+    print(error)
+    await invalid_command_callback(ctx.author)
 
-        print("Received in guild: " +  str(message.guild))
-        if validate_command_prefix(message.content, "!auth"):
-            print("User called !auth")
-            await authenticate_command(message, member)
-        elif validate_command_prefix(message.content, "!code"):
-            await code_command(message, member)
-        elif validate_command_prefix(message.content,  "!help"):
-            await member.send(
-                HELP_MESSAGE
-            )
+@client.command(aliases=['code'])
+# When the !code command is called
+async def code_command(ctx, *, content):
+    # Not sent from DM
+    if ctx.guild: return
+    split_message = content.split(" ")
+    if len(split_message) == 2:
+        code=split_message[1]
+        if await does_code_match(code, ctx.author):
+            await grant_verification_role(ctx.author)
+            print("Granted role to : " + ctx.author.name)
+            await role_granted_callback(ctx.author)
         else:
-            await invalid_command_callback(member)
+            print("Invalid verification code from: " + ctx.author.name)
+            await invalid_verification_code_callback(ctx.author)
+    else:
+        print("Invalid verification code command from: " + ctx.author.name)
+        await invalid_command_callback(ctx.author)
+
+@client.command(aliases=['auth'])
+# When the !auth command is called
+async def authenticate_command(ctx, *, content):    
+    # Not sent from DM
+    if ctx.guild: return
+    # Check first if user already has participant role
+    split_message = content.split(" ")
+    # Command in the improper format, send an error message
+    # Note: If no content raises an exception, would it be worth raising an exception here too rather than sending an error message and breaking?
+    if not (len(split_message) == 2 and "@" in split_message[1] \
+        and len(split_message[1]) <= 254):
+        await invalid_command_callback(ctx.author)
+        return
+    
+    email = split_message[1]
+    # Validate email
+    if is_valid_email(email) and await is_free_email(ctx.author, email):
+        print("Valid email used: " + email)
+        gen = CodeGenerator(code_length=CODE_LENGTH)
+        code = gen.generate()
+        print("Code generated:" + code)
+        emailService = EmailService(EMAIL_USERNAME,EMAIL_PASSWORD)
+        status = emailService.sendmail(receiver=email,
+            subject=EMAIL_SUBJECT,
+            #TODO: Format this into a constant
+            body=f"Welcome to Deerfield Village, {ctx.author.name}! \
+            Your verification code is: {code}"
+            )
+        if status:
+            print("Email sent")
+            await send_verification_log(code, email, ctx.author)
+            await send_verification_confirmation(ctx.author)
+        else:
+            print("FAILURE: Could not send email")
+            await invalid_email_callback(ctx.author)
+    else:
+        #TODO Please submit a valid uoft email address.
+        print("Invalid email from: " + ctx.author.name)
+
+@client.command(aliases=['help'])
+async def help_command(ctx):
+    # Not sent in DM
+    if ctx.guild: return
+    await ctx.send(HELP_MESSAGE)
+
+
+async def role_granted_callback(member):
+    await member.send(
+        'Success! Have fun, be sure to check #schedule for the full event schedule!'
+    )
 
 @client.event
 #when a user is banned
 async def on_member_ban(guild, user):
     global verified_channel
-    messages = await verified_channel.history(limit=20000).flatten()
+    messages = [message async for message in verified_channel.history(limit=20000)]
     for message in messages:
         parsed = message.content.split(", ")
         email = parsed[0]
@@ -178,7 +242,7 @@ async def on_member_ban(guild, user):
 #when a user is unbanned
 async def on_member_unban(guild, user):
     global banned_channel
-    messages = await banned_channel.history(limit=20000).flatten()
+    messages = [message async for message in banned_channel.history(limit=20000)]
     for message in messages:
         parsed = message.content.split(", ")
         email = parsed[0]
@@ -200,7 +264,7 @@ async def grant_verification_role(user):
 # check if code matches, if it does return the email of the verified user
 async def does_code_match(code, member):
     global verification_channel
-    messages = await verification_channel.history(limit=20000).flatten()
+    messages = [message async for message in verification_channel.history(limit=20000)]
     for message in messages:
         parsed = message.content.split(", ")
         if len(parsed) <= 3:
@@ -218,13 +282,13 @@ async def does_code_match(code, member):
 async def is_free_email(user, email):
     global banned_channel
     global verified_channel
-    messages = await banned_channel.history(limit=20000).flatten()
+    messages = [message async for message in banned_channel.history(limit=20000)]
     for message in messages:
         parsed = message.content.split(", ")
         if email == parsed[0]:
             await user.send("This email address has been banned from a previous account.")
             return False
-    messages = await verified_channel.history(limit=20000).flatten()
+    messages = [message async for message in verified_channel.history(limit=20000)]
     for message in messages:
         parsed = message.content.split(", ")
         if email == parsed[0]:
@@ -248,63 +312,6 @@ async def send_verified_log(email, member):
 async def send_banned_log(email, member):
     global banned_channel
     await banned_channel.send(f'{email}, {member.name}, {member.id}')
-
-# User called !auth, Attempt to authenticate user
-async def authenticate_command(message, member):    
-    # Check first if user already has participant role
-    split_message = message.content.split(" ")
-    # Command in the improper format, send an error message
-    if not (len(split_message) == 2 and "@" in split_message[1] \
-        and len(split_message[1]) <= 254):
-        await invalid_command_callback(member)
-        return
-    
-    email = split_message[1]
-    # Validate email
-    if is_valid_email(email) and await is_free_email(member, email):
-        print("Valid email used: " + email)
-        gen = CodeGenerator(code_length=CODE_LENGTH)
-        code = gen.generate()
-        print("Code generated:" + code)
-        emailService = EmailService(EMAIL_USERNAME,EMAIL_PASSWORD)
-        status = emailService.sendmail(receiver=email,
-            subject=EMAIL_SUBJECT,
-            #TODO: Format this into a constant
-            body=f"Welcome to Deerfield Village, {member.name}! \
-            Your verification code is: {code}"
-            )
-        if status:
-            print("Email sent")
-            await send_verification_log(code, email, member)
-            await send_verification_confirmation(member)
-        else:
-            print("FAILURE: Could not send email")
-            await invalid_email_callback(member)
-    else:
-        #TODO Please submit a valid uoft email address.
-        print("Invalid email from: " + member.name)
-
-# User called !code, Attempt to verify user's code
-async def code_command(message, member):
-    split_message = message.content.split(" ")
-    if len(split_message) == 2:
-        code=split_message[1]
-        if await does_code_match(code, member):
-            await grant_verification_role(member)
-            print("Granted role to : " + member.name)
-            await role_granted_callback(member)
-        else:
-            print("Invalid verification code from: " + member.name)
-            await invalid_verification_code_callback(member)
-    else:
-        print("Invalid verification code command from: " + member.name)
-        await invalid_command_callback(member)
-
-async def role_granted_callback(member):
-    await member.send(
-        'Success! Have fun, be sure to check #schedule for the full event schedule!'
-    )
-
 
 async def send_verification_confirmation(member):
     await member.send(
@@ -330,15 +337,15 @@ async def invalid_verification_code_callback(member):
     )
 
 
-def validate_command_prefix(content, prefix):
-    ''' Validates whether the content of a command's message 
-        starts with the required prefix.
-    '''
-    if not isinstance(content, str):
-        return False
-    if len(content) < len(prefix) or content[0:len(prefix)] != prefix:
-        return False
-    return True
+# def validate_command_prefix(content, prefix):
+#     ''' Validates whether the content of a command's message 
+#         starts with the required prefix.
+#     '''
+#     if not isinstance(content, str):
+#         return False
+#     if len(content) < len(prefix) or content[0:len(prefix)] != prefix:
+#         return False
+#     return True
 
 
 def is_valid_email(email):
